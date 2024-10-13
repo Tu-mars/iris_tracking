@@ -32,7 +32,13 @@ for index, input_file in enumerate(input_file_list):
     RIGHT_EYE_INNER_CORNER_INDEX = 243
     LEFT_EYE_OUTER_CORNER_INDEX = 263
     RIGHT_EYE_OUTER_CORNER_INDEX = 130
-
+    
+    LEFT_EYE_INDICES = [362, 385, 387, 263, 373, 380]
+    RIGHT_EYE_INDICES = [33, 160, 158, 133, 153, 144]
+    
+    LEFT_BLINK = []
+    RIGHT_BLINK = []
+    BLINK_COUNT = 0
     LABEL = []
     RIGHT_IRIS = []
     LEFT_IRIS = []
@@ -50,8 +56,8 @@ for index, input_file in enumerate(input_file_list):
     with mp_face_mesh.FaceMesh(
         max_num_faces=1, 
         refine_landmarks=True, 
-        min_detection_confidence=0.8, 
-        min_tracking_confidence=0.8) as face_mesh:
+        min_detection_confidence=0.85, 
+        min_tracking_confidence=0.85) as face_mesh:
         while cap.isOpened():
             success, image = cap.read()
             if not success:
@@ -143,7 +149,7 @@ for index, input_file in enumerate(input_file_list):
                             }
                             for iris, landmarks in right_iris_landmarks.items():
                                 RIGHT_IRIS_X, RIGHT_IRIS_Y = fc.calculate_iris_center(landmarks, imgWidth, imgHeight)
-                                cv2.circle(image, (RIGHT_IRIS_X, RIGHT_IRIS_Y), 1, (0, 0, 255), -1)
+                                #cv2.circle(image, (RIGHT_IRIS_X, RIGHT_IRIS_Y), 1, (0, 0, 255), -1)
                                 RIGHT_IRIS.append([RIGHT_IRIS_X, RIGHT_IRIS_Y])
 
                             left_iris_landmarks = {
@@ -152,20 +158,15 @@ for index, input_file in enumerate(input_file_list):
                             }
                             for iris, landmarks in left_iris_landmarks.items():
                                 LEFT_IRIS_X, LEFT_IRIS_Y = fc.calculate_iris_center(landmarks, imgWidth, imgHeight)
-                                cv2.circle(image, (LEFT_IRIS_X, LEFT_IRIS_Y), 1, (0, 0, 255), -1)
+                                #cv2.circle(image, (LEFT_IRIS_X, LEFT_IRIS_Y), 1, (0, 0, 255), -1)
                                 LEFT_IRIS.append([LEFT_IRIS_X, LEFT_IRIS_Y])
+                            left_blink = fc.detect_blink(face_landmarks.landmark, LEFT_EYE_INDICES, imgWidth, imgHeight)
+                            right_blink = fc.detect_blink(face_landmarks.landmark, RIGHT_EYE_INDICES, imgWidth, imgHeight)
+
+                            LEFT_BLINK.append(left_blink)
+                            RIGHT_BLINK.append(right_blink)
                             
-                            key = cv2.waitKey(0) & 0xFF
-                            if key == ord('1'):
-                                LABEL.append(1) #focus
-                            elif key == ord('2'):
-                                LABEL.append(2) #non_focus
-                            elif key == ord('3'):
-                                LABEL.append(3) #idk
                                 
-                            
-                            
-                    
                     cv2.circle(image,(int(left_eye_inner_corner_x), int(left_eye_inner_corner_y)), 2, (0, 0, 255), cv2.FILLED) #left_eye_corner
                     
                     cv2.circle(image,(int(right_eye_inner_corner_x), int(right_eye_inner_corner_y)), 2, (0, 0, 255), cv2.FILLED) #left_eye_corner
@@ -176,19 +177,19 @@ for index, input_file in enumerate(input_file_list):
                     right_mid_x, right_mid_y = fc.calculate_eye_mid(right_eye_inner_corner_x, right_eye_inner_corner_y, 
                                                                  right_eye_outer_corner_x, right_eye_outer_corner_y)
                     
-                    cv2.circle(image, (int(right_mid_x), int(right_mid_y)), 1, (255, 0, 0), cv2.FILLED)
+                    #cv2.circle(image, (int(right_mid_x), int(right_mid_y)), 1, (255, 0, 0), cv2.FILLED)
                     right_top_left = (int(right_mid_x - 3), int(right_mid_y - 4))  # 方框左上角
-                    right_bottom_right = (int(right_mid_x + 4), int(right_mid_y + 1))  # 方框右下角
-                    cv2.rectangle(image, right_top_left, right_bottom_right, (0, 255, 0), 1)  # 绿色方框
+                    right_bottom_right = (int(right_mid_x + 5), int(right_mid_y + 1))  # 方框右下角
+                    #cv2.rectangle(image, right_top_left, right_bottom_right, (0, 255, 0), 1)  # 绿色方框
                     
                     # 計算左眼的中點
                     left_mid_x, left_mid_y = fc.calculate_eye_mid(left_eye_inner_corner_x, left_eye_inner_corner_y, 
                                                                left_eye_outer_corner_x, left_eye_outer_corner_y)
-                    cv2.circle(image, (int(left_mid_x), int(left_mid_y)), 1, (255, 0, 0), cv2.FILLED)
+                    #cv2.circle(image, (int(left_mid_x), int(left_mid_y)), 1, (255, 0, 0), cv2.FILLED)
 
-                    left_top_left = (int(left_mid_x - 6), int(left_mid_y - 4))  # 方框左上角
-                    left_bottom_right = (int(left_mid_x + 1), int(left_mid_y + 1))  # 方框右下角
-                    cv2.rectangle(image, left_top_left, left_bottom_right, (0, 255, 0), 1)  # 绿色方框
+                    left_top_left = (int(left_mid_x - 5), int(left_mid_y - 4))  # 方框左上角
+                    left_bottom_right = (int(left_mid_x + 5), int(left_mid_y + 1))  # 方框右下角
+                    #cv2.rectangle(image, left_top_left, left_bottom_right, (0, 255, 0), 1)  # 绿色方框
 
                     rg_v_mid_in_x, rg_v_mid_in_y = fc.calculate_vector_to_what(
                         right_eye_inner_corner_x, right_eye_inner_corner_y, 
@@ -225,15 +226,20 @@ for index, input_file in enumerate(input_file_list):
                     fc.draw_results_on_image(image,rg_distance_mid_iris, lf_distance_mid_iris,
                                           rg_angle_vector_inner, lf_angle_vector_inner)
                     
-                    # 检查虹膜是否在左眼的方框内
-                    if left_top_left[0] <= LEFT_IRIS_X <= left_bottom_right[0] and left_top_left[1] <= LEFT_IRIS_Y <= left_bottom_right[1] and right_top_left[0] <= RIGHT_IRIS_X <= right_bottom_right[0] and right_top_left[1] <= RIGHT_IRIS_Y <= right_bottom_right[1]:
-                        key = cv2.waitKey(0) & 0xFF  # 等待手动按键
-                        if key == ord('1'):
-                            LABEL.append(1)  # 手动标记为 "focus"
-                        if key == ord('2'):
-                            LABEL.append(2)  #  "non_focus"
+                    if left_blink and right_blink:
+                        LABEL.append(3)
+                        cv2.putText(image, "Blink Detected", (50, 240), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2)    
                     else:
-                        LABEL.append(2)  # 如果虹膜不在方框内，自动标记为 "non_focus"
+                        if left_top_left[0] <= LEFT_IRIS_X <= left_bottom_right[0] and left_top_left[1] <= LEFT_IRIS_Y <= left_bottom_right[1] and right_top_left[0] <= RIGHT_IRIS_X <= right_bottom_right[0] and right_top_left[1] <= RIGHT_IRIS_Y <= right_bottom_right[1]:
+                            key = cv2.waitKey(0) & 0xFF  # 等待手动按键
+                            if key == ord('1'):
+                                LABEL.append(1)  # 手动标记为 "focus"
+                            if key == ord('2'):
+                                LABEL.append(2)  #  "non_focus"
+                            if key == ord('3'):
+                                LABEL.append(3)  # "idk"
+                        else:
+                            LABEL.append(2) #non_focus
 
                 else:
 
@@ -301,6 +307,8 @@ for index, input_file in enumerate(input_file_list):
     LABEL = LABEL[:min_length]
     DISTANCE = DISTANCE[:min_length]
     IRIS_ANGLE = IRIS_ANGLE[:min_length]
+    LEFT_BLINK = LEFT_BLINK[:min_length]
+    RIGHT_BLINK = RIGHT_BLINK[:min_length]
 
     IRIS_Data = np.hstack((np.array(RIGHT_IRIS), np.array(LEFT_IRIS),
                            np.array(LEFT_EYE_INNER_CORNERS), np.array(RIGHT_EYE_INNER_CORNERS),
@@ -317,6 +325,10 @@ for index, input_file in enumerate(input_file_list):
                                           'RIGHT_EYE_OUTER_X', 'RIGHT_EYE_OUTER_Y',
                                           'pitch', 'yaw', 'roll'
                                           ])
+    df['LEFT_BLINK'] = LEFT_BLINK
+    df['RIGHT_BLINK'] = RIGHT_BLINK
+    df['BLINK_COUNT'] = BLINK_COUNT
+    
     df2 = pd.DataFrame(feature_data, columns=['right_distance','left_distance', 
                                               'right_angle','left_angle', 
                                               'pitch', 'yaw', 'roll', 
